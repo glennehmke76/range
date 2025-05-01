@@ -49,9 +49,9 @@ BEGIN
     COMMIT;
 END;
 $$;
-CALL insert_base_hulls(
-    p_sp_id := 20,
-    p_hull_type := 'alpha',
-    p_alpha := 2.5,
-    p_class := 1
-);
+-- CALL insert_base_hulls(
+--     p_sp_id := 20,
+--     p_hull_type := 'alpha',
+--     p_alpha := 2.5,
+--     p_class := 1
+-- );
