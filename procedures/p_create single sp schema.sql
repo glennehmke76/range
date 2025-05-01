@@ -2,7 +2,7 @@ CREATE OR REPLACE PROCEDURE create_sp_schema(p_sp_id integer)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    schema_name varchar;
+  v_schema_name varchar;
 BEGIN
     -- Validate
     IF p_sp_id IS NULL THEN
@@ -10,16 +10,26 @@ BEGIN
     END IF;
 
     -- Set schema name
-    schema_name := 'rl_' || p_sp_id;
+    v_schema_name := 'rl_' || p_sp_id;
+
+    -- Check if schema exists
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.schemata
+      WHERE information_schema.schemata.schema_name = v_schema_name
+    ) THEN
+      RAISE NOTICE 'Schema % already exists. Stopping procedure.', v_schema_name;
+      RETURN;
+    END IF;
 
     -- Set the search path to the new schema then public
-    SET search_path = schema_name, public;
+    EXECUTE format('SET search_path TO %I, public', v_schema_name);
 
     -- Create schema
-    EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);
+    EXECUTE format('CREATE SCHEMA %I', v_schema_name);
 
     -- Create sightings
-    EXECUTE format('DROP TABLE IF EXISTS %I.sightings', schema_name);
+    EXECUTE format('DROP TABLE IF EXISTS %I.sightings', v_schema_name);
     EXECUTE format('
         CREATE TABLE %I.sightings AS
         SELECT DISTINCT
@@ -53,28 +63,33 @@ BEGIN
         JOIN source ON survey.source_id = source.id
         JOIN survey_type ON survey.survey_type_id = survey_type.id
         WHERE sighting.sp_id = %s
-    ', schema_name, p_sp_id);
+    ', v_schema_name, p_sp_id);
 
     EXECUTE format('
         ALTER TABLE %I.sightings
         ADD CONSTRAINT tmp_region_sightings_pk
         PRIMARY KEY (id)
-    ', schema_name);
+    ', v_schema_name);
 
     EXECUTE format('
         CREATE INDEX IF NOT EXISTS idx_sightings_sp_id
         ON %I.sightings (sp_id)
-    ', schema_name);
+    ', v_schema_name);
 
     EXECUTE format('
         CREATE INDEX IF NOT EXISTS idx_sightings_geom
         ON %I.sightings USING gist (geom)
         TABLESPACE pg_default
-    ', schema_name);
+    ', v_schema_name);
 
     RAISE NOTICE 'Created schema and sighting table for sp_id: %', p_sp_id;
 
     COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error occurred: %', SQLERRM;
+        ROLLBACK;
+        RAISE;
 END;
 $$;
--- CALL create_sp_schema(7);
+-- CALL create_sp_schema(2);

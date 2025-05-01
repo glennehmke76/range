@@ -1,40 +1,59 @@
-CREATE OR REPLACE PROCEDURE create_regions(
+CREATE OR REPLACE PROCEDURE create_regions_spc_methods(
   p_sp_id INTEGER,
-  p_region TEXT,
   p_start_year INTEGER,
   p_end_year INTEGER,
-  p_survey_types INTEGER[]
+  p_survey_types INTEGER[],
+  p_region_suffix TEXT
 )
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  regionalisation TEXT;
+  v_schema_name TEXT;
 BEGIN
     -- Validate inputs
-    IF p_sp_id IS NULL
-      OR p_region IS NULL
-      OR p_start_year IS NULL
-      OR p_end_year IS NULL
-      OR p_survey_types IS NULL THEN
-      RAISE EXCEPTION 'All parameters must be provided';
+    IF p_sp_id IS NULL OR p_start_year IS NULL OR p_end_year IS NULL OR
+       p_survey_types IS NULL OR p_region_suffix IS NULL THEN
+        RAISE EXCEPTION 'All parameters must be provided';
     END IF;
 
-    -- Create range constrained region
+    -- Set schema name
+    v_schema_name := 'rl_' || p_sp_id;
+
+    -- Define regionalisation name
+    regionalisation := 'region_' || p_region_suffix;
+
+    -- Validate regionalisation
+    IF NOT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_name = regionalisation
+    ) THEN
+      RAISE EXCEPTION 'Regionalisation does not exist', regionalisation;
+    END IF;
+
+    -- Set the search path to the new schema then public
+    EXECUTE format('SET search_path TO %I, public', v_schema_name);
+
+    -- Create constrained regions
+    EXECUTE format('
     CREATE TABLE tmp_constrained_region AS
     WITH tmp_simple_region AS (
-      SELECT
-        id,
-        ST_SimplifyPreserveTopology(geom, 0.01) AS geom
-      FROM
-        (SELECT * FROM (SELECT id, geom FROM p_region) r) AS region
-        )
+        SELECT
+          id,
+          ST_SimplifyPreserveTopology(geom, 0.01) AS geom
+        FROM %I
+    )
     SELECT
       tmp_simple_region.id,
       ST_Intersection(tmp_simple_region.geom, base_hulls.geom) AS geom
     FROM tmp_simple_region
-    JOIN base_hulls ON ST_Intersects(tmp_simple_region.geom, base_hulls.geom);
+    JOIN base_hulls ON ST_Intersects(tmp_simple_region.geom, base_hulls.geom)', regionalisation);
     CREATE INDEX IF NOT EXISTS idx_tmp_region_region_id ON tmp_constrained_region (id);
     CREATE INDEX IF NOT EXISTS idx_tmp_region_geom ON tmp_constrained_region USING gist (geom);
 
-   -- Create range_region using temp tables (tried CTE which failed). Probably useful to add indexes to speed up processing
+   -- Create range_region.
+   -- temp tables used (tried CTE which failed). Perhaps useful to add indexes to speed up processing
     CREATE TEMPORARY TABLE surveys_by AS
     SELECT
       tmp_constrained_region.id AS region_id,
@@ -51,6 +70,7 @@ BEGIN
       tmp_constrained_region.id,
       extract(year from survey.start_date);
 
+    -- Create sightings_by temporary table
     CREATE TEMPORARY TABLE sightings_by AS
     SELECT
       tmp_constrained_region.id AS region_id,
@@ -61,7 +81,7 @@ BEGIN
     JOIN sightings
       ON survey.id = sightings.survey_id
       AND survey.data_source = sightings.data_source
-    JOIN source ON survey.source_id = source.id
+  JOIN source ON survey.source_id = source.id
     JOIN survey_type ON survey.survey_type_id = survey_type.id
     JOIN tmp_constrained_region ON ST_Intersects(survey.geom, tmp_constrained_region.geom)
     WHERE extract(year from survey.start_date) >= p_start_year
@@ -69,14 +89,14 @@ BEGIN
     AND survey.survey_type_id = ANY(p_survey_types)
     AND sightings.sp_id = p_sp_id
     GROUP BY
-      tmp_constrained_region.id,
-      sightings.sp_id,
-      extract(year from survey.start_date);
-
+        tmp_constrained_region.id,
+        sightings.sp_id,
+        extract(year from survey.start_date);
+    DROP TABLE IF EXISTS range_region;
     CREATE TABLE range_region AS
     SELECT
       ST_Multi(ST_Union(tmp_constrained_region.geom)) AS geom,
-      p_region AS regionalisation,
+      regionalisation AS regionalisation,
       yearly.region_id,
       yearly.sp_id,
       SUM(yearly.num_surveys) AS num_surveys,
@@ -103,6 +123,7 @@ BEGIN
 
     -- Add and update percentile field
     ALTER TABLE range_region ADD mean_yearly_rr_percentile decimal;
+
     UPDATE range_region
     SET mean_yearly_rr_percentile = CASE
       WHEN mean_yearly_rr < (SELECT percentile_disc(0.05) WITHIN GROUP (ORDER BY mean_yearly_rr) FROM range_region) THEN 5
@@ -123,14 +144,21 @@ BEGIN
     DROP TABLE IF EXISTS surveys_by;
     DROP TABLE IF EXISTS sightings_by;
 
-    COMMIT;
+    RAISE NOTICE 'Created range_region for sp_id: %, region: %, years: % to %',
+                 p_sp_id, regionalisation, p_start_year, p_end_year;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Error occurred: %', SQLERRM;
+    ROLLBACK;
+    RAISE;
 END;
 $$;
 
--- CALL create_regions(
---     p_sp_id := 123, -- species ID
---     p_region := 'region_name', -- regionalisation
---     p_start_year := 2000, -- start year for data points to include
---     p_end_year := 2023, -- end year for data points to include
---     p_survey_types := ARRAY[1,2,3] -- survey types to include by id (array as comma-separated)
+-- CALL create_regions_spc_methods(
+--   p_sp_id := 2,
+--   p_start_year := 1900,
+--   p_end_year := 2023,
+--   p_survey_types := ARRAY[1,2],
+--   p_region_suffix := 'ibra'
 -- );
