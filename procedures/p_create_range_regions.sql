@@ -23,8 +23,9 @@ BEGIN
       SELECT
         id,
         ST_SimplifyPreserveTopology(geom, 0.01) AS geom
-      FROM (SELECT * FROM (SELECT id, geom FROM p_region) r) AS region
-    )
+      FROM
+        (SELECT * FROM (SELECT id, geom FROM p_region) r) AS region
+        )
     SELECT
       tmp_simple_region.id,
       ST_Intersection(tmp_simple_region.geom, base_hulls.geom) AS geom
@@ -128,10 +129,10 @@ BEGIN
 END;
 $$;
 
--- CALL create_regions(
---     p_sp_id := 123,               -- species ID
---     p_region := 'region_name',    -- region name
---     p_start_year := 2000,         -- start year
---     p_end_year := 2023,           -- end year
---     p_survey_types := ARRAY[1,2,3] -- array of survey type IDs
--- );
+CALL create_regions(
+    p_sp_id := 123, -- species ID
+    p_region := 'region_name', -- regionalisation
+    p_start_year := 2000, -- start year for data points to include
+    p_end_year := 2023, -- end year for data points to include
+    p_survey_types := ARRAY[1,2,3] -- survey types to include by id (array as comma-separated)
+);
