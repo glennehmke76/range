@@ -2,55 +2,55 @@ CREATE OR REPLACE PROCEDURE create_sp_schemas(p_sp_ids integer[])
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    sp_id integer;
-    schema_name varchar;
-    success_count integer := 0;
-    error_count integer := 0;
+  sp_id integer;
+  schema_name varchar;
+  success_count integer := 0;
+  error_count integer := 0;
 BEGIN
-    -- Loop through each sp_id in the array
+    -- Loop through each sp_id in array
     FOREACH sp_id IN ARRAY p_sp_ids
     LOOP
         BEGIN
             -- Validate individual sp_id
             IF sp_id IS NULL THEN
-                RAISE WARNING 'Skipping NULL sp_id';
-                error_count := error_count + 1;
-                CONTINUE;
+              RAISE WARNING 'Skipping NULL sp_id';
+              error_count := error_count + 1;
+              CONTINUE;
             END IF;
 
-            -- Set schema name based on current sp_id
+            -- Set schema name for current sp_id
             schema_name := 'rl_' || sp_id;
 
-            -- Create schema if not exists
+            -- Create schema
             EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);
 
-            -- Create sightings table
+            -- Create sightings
             EXECUTE format('
                 CREATE TABLE %I.sightings AS
                 SELECT DISTINCT
-                    row_number() OVER () as id,
-                    survey.id AS survey_id,
-                    survey.data_source,
-                    survey.source_id,
-                    source.name AS source_name,
-                    survey.source_ref,
-                    coalesce(extract(year from survey.start_date),0) :: integer AS year,
-                    survey.start_date,
-                    survey.start_time,
-                    survey.finish_date,
-                    survey.duration_in_minutes,
-                    survey.survey_type_id,
-                    survey_type.name AS survey_type_name,
-                    sighting.id AS sighting_id,
-                    sighting.sp_id AS sp_id,
-                    sighting.individual_count AS count,
-                    sighting.breeding_activity_id,
-                    sighting.vetting_status_id,
-                    CASE
-                        WHEN sighting.vetting_status_id = 3 THEN 0
-                        ELSE NULL :: integer
-                    END AS class_specified,
-                    survey.geom
+                  row_number() OVER () as id,
+                  survey.id AS survey_id,
+                  survey.data_source,
+                  survey.source_id,
+                  source.name AS source_name,
+                  survey.source_ref,
+                  coalesce(extract(year from survey.start_date),0) :: integer AS year,
+                  survey.start_date,
+                  survey.start_time,
+                  survey.finish_date,
+                  survey.duration_in_minutes,
+                  survey.survey_type_id,
+                  survey_type.name AS survey_type_name,
+                  sighting.id AS sighting_id,
+                  sighting.sp_id AS sp_id,
+                  sighting.individual_count AS count,
+                  sighting.breeding_activity_id,
+                  sighting.vetting_status_id,
+                  CASE
+                      WHEN sighting.vetting_status_id = 3 THEN 0
+                      ELSE NULL :: integer
+                  END AS class_specified,
+                  survey.geom
                 FROM survey
                 JOIN sighting
                     ON survey.id = sighting.survey_id

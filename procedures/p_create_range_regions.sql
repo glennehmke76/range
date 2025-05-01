@@ -17,7 +17,7 @@ BEGIN
       RAISE EXCEPTION 'All parameters must be provided';
     END IF;
 
-    -- Create constrained region table
+    -- Create range constrained region
     CREATE TABLE tmp_constrained_region AS
     WITH tmp_simple_region AS (
       SELECT
@@ -34,7 +34,7 @@ BEGIN
     CREATE INDEX IF NOT EXISTS idx_tmp_region_region_id ON tmp_constrained_region (id);
     CREATE INDEX IF NOT EXISTS idx_tmp_region_geom ON tmp_constrained_region USING gist (geom);
 
-  -- create region table and populate global statistics
+   -- Create range_region using temp tables (tried CTE which failed). Probably useful to add indexes to speed up processing
     CREATE TEMPORARY TABLE surveys_by AS
     SELECT
       tmp_constrained_region.id AS region_id,
@@ -51,7 +51,6 @@ BEGIN
       tmp_constrained_region.id,
       extract(year from survey.start_date);
 
-  -- Create sightings_by temporary table
     CREATE TEMPORARY TABLE sightings_by AS
     SELECT
       tmp_constrained_region.id AS region_id,
@@ -73,7 +72,7 @@ BEGIN
       tmp_constrained_region.id,
       sightings.sp_id,
       extract(year from survey.start_date);
-  -- Create main range_region table
+
     CREATE TABLE range_region AS
     SELECT
       ST_Multi(ST_Union(tmp_constrained_region.geom)) AS geom,
@@ -104,7 +103,6 @@ BEGIN
 
     -- Add and update percentile field
     ALTER TABLE range_region ADD mean_yearly_rr_percentile decimal;
-
     UPDATE range_region
     SET mean_yearly_rr_percentile = CASE
       WHEN mean_yearly_rr < (SELECT percentile_disc(0.05) WITHIN GROUP (ORDER BY mean_yearly_rr) FROM range_region) THEN 5
@@ -120,7 +118,7 @@ BEGIN
       ELSE 100
     END;
 
-    -- Cleanup temporary tables
+    -- Cleanup temp tables
     DROP TABLE IF EXISTS tmp_constrained_region;
     DROP TABLE IF EXISTS surveys_by;
     DROP TABLE IF EXISTS sightings_by;

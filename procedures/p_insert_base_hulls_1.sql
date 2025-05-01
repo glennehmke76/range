@@ -1,8 +1,8 @@
 CREATE OR REPLACE PROCEDURE  insert_base_hulls(
-    p_sp_id integer,
-    p_hull_type varchar,
-    p_alpha numeric,
-    p_class integer
+  p_sp_id integer,
+  p_hull_type varchar,
+  p_alpha numeric,
+  p_class integer
 )
 LANGUAGE plpgsql
 AS $$
@@ -20,17 +20,17 @@ BEGIN
     EXECUTE format('
         INSERT INTO rl_%s.base_hulls (hull_type, alpha, sp_id, class, geom)
         SELECT
-            %L AS hull_type,
-            %s AS alpha,
-            %s AS sp_id,
-            %s AS class,
-            ST_Multi(
-                ST_AlphaShape(
-                    ST_Collect(sightings.geom),
-                    %s,
-                    false
-                )
-            ) AS hull
+          %L AS hull_type,
+          %s AS alpha,
+          %s AS sp_id,
+          %s AS class,
+          ST_Multi(
+              ST_AlphaShape(
+                  ST_Collect(sightings.geom),
+                  %s,
+                  false
+              )
+          ) AS hull
         FROM rl_%s.sightings
         WHERE class_specified IS NULL
     ',
