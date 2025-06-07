@@ -18,7 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_tmp_simple_region_geom
 alter table rl_634.tmp_simple_region
     add num_sightings integer;
 
--- 634 run 1,243,600 rows affected in 8 m 1 s 204 ms
+-- 214 run 1,243,600 rows affected in 8 m 1 s 204 ms
 DROP TABLE IF EXISTS rl_634.sightings;
 CREATE TABLE rl_634.region_sightings AS
 SELECT DISTINCT
@@ -56,7 +56,7 @@ JOIN source ON survey.source_id = source.id
 JOIN survey_type ON survey.survey_type_id = survey_type.id
 -- JOIN tmp_simple_region ON ST_Intersects(survey.geom, tmp_simple_region.geom)
 WHERE
-  sighting.sp_id = 634
+  sighting.sp_id = 214
 ;
 alter table rl_634.sightings
     add constraint tmp_region_sightings_pk
@@ -91,7 +91,7 @@ INSERT INTO rl_xxx_base_hulls (hull_type, alpha, sp_id, class, geom)
 SELECT
   'alpha' AS hull_type,
   2.5 AS alpha,
-  634 AS sp_id,
+  214 AS sp_id,
   0 AS class,
   ST_Multi(
     ST_AlphaShape(
@@ -110,7 +110,7 @@ FROM tmp_simple_region
 JOIN base_hulls ON ST_Intersects(tmp_simple_region.geom, base_hulls.geom)
 WHERE
   base_hulls.class = 0
-  AND base_hulls.sp_id = 634
+  AND base_hulls.sp_id = 214
 --   AND regionalisation = 'sibra'
 ;
 CREATE INDEX IF NOT EXISTS idx_tmp_region_region_id
@@ -121,10 +121,10 @@ CREATE INDEX IF NOT EXISTS idx_tmp_region_geom
 -- create region table and populate global statistics
   -- remember to set predicates so existing rrs are not updated... or do this in a temp table then add it to the master...
 -- CTEs produce an insert error (columns more than expressions) for some reason - some temp tables used
--- 634 execution: execution: 4 m 48 s 786 ms
+-- 214 execution: execution: 4 m 48 s 786 ms
 
 -- ADD INDEXES?
-  -- without (634) =
+  -- without (214) =
 
 
 DROP TABLE IF EXISTS surveys_by;
@@ -169,7 +169,7 @@ CREATE TEMPORARY TABLE sightings_by AS
 --         (survey.survey_type_id = 1
 --         OR survey.survey_type_id = 2
 --         )
-    AND sighting.sp_id = 634
+    AND sighting.sp_id = 214
   GROUP BY
     tmp_constrained_region.id,
     sighting.sp_id,
@@ -264,7 +264,7 @@ UPDATE range_region
   END
   WHERE
     regionalisation = 'sibra_clipped'
-    AND sp_id = 634
+    AND sp_id = 214
 ;
 
 UPDATE range_region
@@ -323,7 +323,7 @@ UPDATE range_region
   END
   WHERE
     regionalisation = 'sibra_clipped'
-    AND sp_id = 634
+    AND sp_id = 214
 ;
 
 -- code non-core regions in range_region_rr
@@ -331,13 +331,13 @@ UPDATE range_region
   UPDATE range_region
   SET class = 3
   WHERE
-    sp_id = 634
+    sp_id = 214
     AND regionalisation = 'sibra_clipped'
     AND mean_yearly_rr_percentile <=20`
   ;
 
 -- core as alpha shape
-  -- 634 took 2 m 35 s 165 ms
+  -- 214 took 2 m 35 s 165 ms
 INSERT INTO base_hulls (hull_type, regionalisation, alpha, sp_id, class, geom)
 WITH hull_sightings AS
   (SELECT
@@ -350,8 +350,8 @@ WITH hull_sightings AS
     ON sightings.sp_id = range_region.sp_id
     AND ST_Intersects(sightings.geom, range_region.geom)
   WHERE
-    sightings.sp_id = 634
-    AND range_region.sp_id = 634
+    sightings.sp_id = 214
+    AND range_region.sp_id = 214
     AND range_region.regionalisation = 'sibra_clipped'
     AND range_region.class IS NULL -- as class = 1 (core)
   )
@@ -380,39 +380,35 @@ WITH hull_sightings AS
 ;
 
 -- subtract core from alpha shape and add to base_hulls as non-core range class
-INSERT INTO base_hulls (hull_type, regionalisation, alpha, sp_id, class, geom)
+INSERT INTO base_hulls (hull_type, alpha, sp_id, class, geom)
 WITH core_hull AS
   (SELECT
     hull_type,
-    regionalisation,
     alpha,
     sp_id,
     class,
     geom
   FROM base_hulls
   WHERE
-    sp_id = 634
+    sp_id = 214
     AND class = 1 -- as core hull
     AND hull_type = 'alpha'
-    AND regionalisation = 'sibra'
   ),
 overall_hull AS
   (SELECT
     sp_id,
     hull_type,
     alpha,
-    regionalisation,
     class,
     geom
   FROM base_hulls
   WHERE
-    sp_id = 634
+    sp_id = 214
     AND class = 0 -- as overall hull
     AND hull_type = 'alpha'
   )
 SELECT
   overall_hull.hull_type,
-  core_hull.regionalisation,
   overall_hull.alpha,
   overall_hull.sp_id,
   3 AS class, -- ie infrequent
@@ -425,7 +421,7 @@ JOIN overall_hull ON ST_Intersects(core_hull.geom, overall_hull.geom)
   -- delete previous overall hull????
 --               DELETE FROM base_hulls
 --               WHERE
---                 sp_id = 634
+--                 sp_id = 214
 --                 AND class = 0
 --               ;
 
@@ -433,7 +429,7 @@ JOIN overall_hull ON ST_Intersects(core_hull.geom, overall_hull.geom)
   UPDATE sightings
   SET class_specified = 9
   WHERE
-    sp_id = 634
+    sp_id = 214
     AND vetting_status_id = 2 -- ie accepted
   ;
 
@@ -477,15 +473,7 @@ WITH hull_sightings AS
 -- alteration 26 April to make vagrant hull without creating an overall
 INSERT INTO base_hulls (hull_type, alpha, sp_id, class, geom)
 WITH overall_hull AS
-  (WITH hull_sightings AS
     (SELECT
-      sightings.sp_id,
-      sightings.geom
-    FROM sightings
-    WHERE
-      sightings.class_specified < 9
-    )
-    SELECT
       'alpha' AS hull_type,
       2.5 AS alpha,
       hulls.sp_id,
@@ -512,7 +500,7 @@ non_vagrant_hull AS
     ST_Union(geom) AS geom
   FROM base_hulls
   WHERE
-    class BETWEEN 1 AND 3-- as core + infrequent
+    class BETWEEN 1 AND 3 -- as core + infrequent
     AND hull_type = 'alpha'
   )
 SELECT
@@ -527,6 +515,13 @@ JOIN overall_hull ON ST_Intersects(non_vagrant_hull.geom, overall_hull.geom)
 
 
 
+
+
+
+
+
+
+
 -- subtract core from alpha shape and add to base_hulls as non-core range class
 INSERT INTO base_hulls (hull_type, regionalisation, alpha, sp_id, class, geom)
 WITH non_vagrant_hull AS
@@ -534,7 +529,7 @@ WITH non_vagrant_hull AS
     ST_Union(geom) AS geom
   FROM base_hulls
   WHERE
-    sp_id = 634
+    sp_id = 214
     AND class BETWEEN 1 AND 3-- as core + infrequent
     AND hull_type = 'alpha'
     AND regionalisation = 'sibra'
@@ -549,7 +544,7 @@ overall_hull AS
     geom
   FROM base_hulls
   WHERE
-    sp_id = 634
+    sp_id = 214
     AND class = 0 -- as new overall hull including vagrancy
     AND hull_type = 'alpha'
   )

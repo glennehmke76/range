@@ -25,7 +25,9 @@ SELECT
 	breeding_activity.name AS breeding_activity_name,
 	survey.geom AS geom
 FROM survey
-JOIN sighting ON survey.id = sighting.survey_id
+JOIN
+  sighting ON survey.id = sighting.survey_id
+  AND survey.data_source = sighting.data_source
 LEFT JOIN source ON survey.source_id = source.id
 LEFT JOIN survey_type ON survey.survey_type_id = survey_type.id
 LEFT JOIN breeding_activity ON sighting.breeding_activity_id = breeding_activity.id
@@ -41,7 +43,9 @@ SELECT
   coalesce(extract(year from survey.start_date),0) :: integer AS year,
 	survey.geom AS geom
 FROM survey
-JOIN sighting ON survey.id = sighting.survey_id
+JOIN
+  sighting ON survey.id = sighting.survey_id
+  AND survey.data_source = sighting.data_source
 WHERE
   sighting.sp_id = 967;
 
@@ -54,10 +58,11 @@ SELECT
 	extract(year from survey.start_date) AS year,
 	range.taxon_id_r,
 	range.class,
-	survey_point.geom AS geom
+	survey.geom AS geom
 FROM survey
-JOIN survey_point ON survey.survey_point_id = survey_point.id
-JOIN sighting ON survey.id = sighting.survey_id
+JOIN
+  sighting ON survey.id = sighting.survey_id
+  AND survey.data_source = sighting.data_source
 -- to constrain to current range...
 JOIN range
   ON sighting.sp_id = range.sp_id
