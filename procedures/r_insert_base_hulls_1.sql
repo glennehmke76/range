@@ -43,7 +43,7 @@ BEGIN
               )
           ) AS hull
         FROM rl_%s.sightings
-        WHERE class_specified IS NULL
+        WHERE class_specified <> 0 OR class_specified IS NULL
     ',
     p_sp_id, -- for schema name
     p_hull_type, -- hull_type
@@ -61,9 +61,9 @@ BEGIN
 END;
 $$;
 
--- CALL r_insert_base_hulls(
---     p_sp_id := 223,
---     p_hull_type := 'alpha',
---     p_alpha := 2.5,
---     p_class := 0
--- );
+CALL r_insert_base_hulls(
+    p_sp_id := 402,
+    p_hull_type := 'alpha',
+    p_alpha := 2.5,
+    p_class := 0
+);

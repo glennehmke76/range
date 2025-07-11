@@ -136,7 +136,7 @@ FROM
     )region_surveys_sightings
 ;
 
--- remember to set predicate so existing rrs are not updated... or do this in a temp table then add it to the master...
+-- remember to set predicate so existing trends are not updated... or do this in a temp table then add it to the master...
 UPDATE range_region_rr
 SET rr_percentile = CASE
   WHEN rr <

@@ -41,7 +41,7 @@ BEGIN
           survey.source_id,
           source.name AS source_name,
           survey.source_ref,
-          coalesce(extract(year from survey.start_date),0) :: integer AS year,
+          coalesce(yyyy,0) :: integer AS year,
           survey.start_date,
           survey.start_time,
           survey.finish_date,
@@ -57,7 +57,8 @@ BEGIN
             WHEN sighting.vetting_status_id = 3 THEN 0
             ELSE NULL :: integer
           END AS class_specified,
-          survey.geom
+          survey.accuracy_in_metres as precision,
+          survey.geom,
         FROM survey
         JOIN sighting
           ON survey.id = sighting.survey_id
@@ -93,4 +94,4 @@ EXCEPTION
 END;
 $$;
 
--- CALL r_create_sp_schema(223);
+-- CALL r_create_sp_schema(386);

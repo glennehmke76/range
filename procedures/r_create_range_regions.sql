@@ -18,16 +18,16 @@ BEGIN
         RAISE EXCEPTION 'All parameters must be provided';
     END IF;
 
-    -- Set schema name
+    -- Set schema
     v_schema_name := 'rl_' || p_sp_id;
 
-    -- Define regionalisation name
+    -- Define regionalisation
     regionalisation := 'region_' || p_region_suffix;
 
-    -- Set the search path to the new schema then public
+    -- Set the search path to species schema then public
     EXECUTE format('SET search_path TO %I, public', v_schema_name);
 
-    -- Create constrained regions
+    -- Create range-constrained regions
     EXECUTE format('
     CREATE TABLE tmp_constrained_region AS
     WITH tmp_simple_region AS (
@@ -44,7 +44,7 @@ BEGIN
     CREATE INDEX IF NOT EXISTS idx_tmp_region_region_id ON tmp_constrained_region (id);
     CREATE INDEX IF NOT EXISTS idx_tmp_region_geom ON tmp_constrained_region USING gist (geom);
 
-   -- Create range_region.
+   -- Create range_region
    -- temp tables used (tried CTE which failed). Perhaps useful to add indexes to speed up processing
     CREATE TEMPORARY TABLE surveys_by AS
     SELECT

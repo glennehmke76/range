@@ -1,4 +1,4 @@
--- 4.1 alteration is yearly constrained rrs
+-- 4.1 alteration is yearly constrained trends
 
 -- make overall hull 1st for regional clipper
 -- overall hull as determined by alpha shape
@@ -119,7 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_tmp_region_geom
   ON tmp_constrained_region USING gist (geom) TABLESPACE pg_default;
 
 -- create region table and populate global statistics
-  -- remember to set predicates so existing rrs are not updated... or do this in a temp table then add it to the master...
+  -- remember to set predicates so existing trends are not updated... or do this in a temp table then add it to the master...
 -- CTEs produce an insert error (columns more than expressions) for some reason - som temp tables used
 -- 634 execution: execution: 4 m 48 s 786 ms
 

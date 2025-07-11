@@ -1,5 +1,5 @@
-DROP PROCEDURE IF EXISTS r_insert_core_hull_only;
-CREATE OR REPLACE PROCEDURE r_insert_core_hull_only(
+DROP PROCEDURE IF EXISTS r_insert_historic_hull_subtractions;
+CREATE OR REPLACE PROCEDURE r_insert_historic_hull_subtractions(
     p_sp_id integer,
     p_hull_type varchar,
     p_alpha numeric,
@@ -19,44 +19,48 @@ BEGIN
     EXECUTE format('SET search_path TO %I, public', v_schema_name);
 
     EXECUTE format('
-        INSERT INTO rl_%s.base_hulls (hull_type, alpha, sp_id, class, geom)
+        INSERT INTO %I.base_hulls (hull_type, alpha, sp_id, class, geom)
         WITH hull_sightings AS (
             SELECT
+                sightings.disjunct_pop_id,
                 sightings.sp_id,
                 sightings.geom,
                 Extract(YEAR FROM sightings.start_date) AS year
             FROM sightings
             WHERE
-                sightings.sp_id = %s
-                AND sightings.class_specified IS NULL
+                sightings.sp_id = %L
+                AND sightings.class_specified = 4
+                AND sightings.disjunct_pop_id IS NOT NULL
         )
         SELECT
             %L AS hull_type,
-            %s AS alpha,
+            %L AS alpha,
             hulls.sp_id,
-            %s AS class,
+            %L AS class,
             ST_Multi(
                 ST_Union(
                     ST_SetSRID(hulls.hull,4283))) AS geom
-        FROM (
-            SELECT
+        FROM
+            (SELECT
                 hull_sightings.sp_id,
+                hull_sightings.disjunct_pop_id,
                 ST_Multi(
                     ST_AlphaShape(
                         ST_Collect(hull_sightings.geom),
-                        %s, false)) AS hull
+                        %L, false)) AS hull
             FROM hull_sightings
             GROUP BY
-                hull_sightings.sp_id
-        ) hulls
+                hull_sightings.sp_id,
+                hull_sightings.disjunct_pop_id
+            ) hulls
         GROUP BY
             hulls.sp_id',
-        p_sp_id,      -- for table name prefix
-        p_sp_id,      -- for first WHERE condition
-        p_hull_type,  -- for hull_type column
-        p_alpha,      -- for alpha column
-        p_class,      -- for class column
-        p_alpha       -- for ST_AlphaShape parameter
+        v_schema_name, -- For table name prefix
+        p_sp_id,       -- For WHERE condition
+        p_hull_type,   -- For hull_type
+        p_alpha,       -- For alpha
+        p_class,       -- For class
+        p_alpha        -- For ST_AlphaShape parameter
     );
 
     RAISE NOTICE 'Inserted hull for sp_id: %, hull_type: %, alpha: %, class: %',
@@ -66,9 +70,10 @@ BEGIN
 END;
 $$;
 
-CALL r_insert_core_hull_only(
+CALL r_insert_historic_hull_subtractions(
     p_sp_id := 402,
     p_hull_type := 'alpha',
     p_alpha := 2.5,
-    p_class := 1
+    p_class := 4
 );
+

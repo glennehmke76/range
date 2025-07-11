@@ -35,7 +35,7 @@ BEGIN
                   survey.source_id,
                   source.name AS source_name,
                   survey.source_ref,
-                  coalesce(extract(year from survey.start_date),0) :: integer AS year,
+                  coalesce(yyyy,0) :: integer AS year,
                   survey.start_date,
                   survey.start_time,
                   survey.finish_date,

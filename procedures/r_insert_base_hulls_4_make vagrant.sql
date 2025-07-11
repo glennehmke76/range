@@ -1,3 +1,4 @@
+-- there are sometimes not enough points to do this (or no points have been defined) so I have addded procedure validations and error checking throughout
 DROP PROCEDURE IF EXISTS r_insert_vagrant_hull;
 CREATE OR REPLACE PROCEDURE r_insert_vagrant_hull(
     p_sp_id integer,

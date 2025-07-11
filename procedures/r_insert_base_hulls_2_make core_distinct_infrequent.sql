@@ -1,5 +1,5 @@
-DROP PROCEDURE IF EXISTS r_insert_core_hull_only;
-CREATE OR REPLACE PROCEDURE r_insert_core_hull_only(
+DROP PROCEDURE IF EXISTS r_insert_core_hull_dist_infreq;
+CREATE OR REPLACE PROCEDURE r_insert_core_hull_dist_infreq(
     p_sp_id integer,
     p_hull_type varchar,
     p_alpha numeric,
@@ -22,13 +22,18 @@ BEGIN
         INSERT INTO rl_%s.base_hulls (hull_type, alpha, sp_id, class, geom)
         WITH hull_sightings AS (
             SELECT
+                range_region.id AS region_id,
                 sightings.sp_id,
                 sightings.geom,
                 Extract(YEAR FROM sightings.start_date) AS year
             FROM sightings
+            JOIN range_region
+                ON sightings.sp_id = range_region.sp_id
+                AND ST_Intersects(sightings.geom, range_region.geom)
             WHERE
                 sightings.sp_id = %s
-                AND sightings.class_specified IS NULL
+                AND range_region.sp_id = %s
+                AND range_region.class = 0
         )
         SELECT
             %L AS hull_type,
@@ -53,6 +58,7 @@ BEGIN
             hulls.sp_id',
         p_sp_id,      -- for table name prefix
         p_sp_id,      -- for first WHERE condition
+        p_sp_id,      -- for second WHERE condition
         p_hull_type,  -- for hull_type column
         p_alpha,      -- for alpha column
         p_class,      -- for class column
@@ -66,9 +72,9 @@ BEGIN
 END;
 $$;
 
-CALL r_insert_core_hull_only(
-    p_sp_id := 402,
-    p_hull_type := 'alpha',
-    p_alpha := 2.5,
-    p_class := 1
-);
+-- CALL r_insert_core_hull_dist_infreq(
+--     p_sp_id := 223,
+--     p_hull_type := 'alpha',
+--     p_alpha := 2.5,
+--     p_class := 1
+-- );

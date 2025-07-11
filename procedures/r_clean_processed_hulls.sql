@@ -9,6 +9,8 @@ DECLARE
     v_row_count INTEGER;
     v_column_list TEXT;
     v_sql TEXT;
+    v_error_message TEXT;
+    v_error_state TEXT;
 BEGIN
     -- Input validation
     IF p_sp_id IS NULL THEN
@@ -104,9 +106,15 @@ BEGIN
 
 EXCEPTION
     WHEN OTHERS THEN
+        -- Store error details in variables first
+        v_error_message := SQLERRM;
+        v_error_state := SQLSTATE;
+
         -- Clean up on error
         DROP TABLE IF EXISTS processed_hulls_tmp;
-        RAISE EXCEPTION 'Error in clean_processed_hulls: % %', SQLERRM, SQLSTATE;
+
+        -- Use the variables in the RAISE statement
+        RAISE EXCEPTION 'Error in clean_processed_hulls: % %', v_error_message, v_error_state;
 END;
 $$;
 
